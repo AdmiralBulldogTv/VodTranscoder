@@ -1,0 +1,23 @@
+level: info
+
+redis:
+  username: ""
+  password: ""
+  addresses:
+    - ""
+  database: 0
+  sentinel: false
+
+monitoring:
+  enabled: true
+  bind: :9100
+  labels:
+    - key: key
+      value: value
+
+health:
+  enabled: true
+  bind: :9101
+
+pod:
+  name: ""
