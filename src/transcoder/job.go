@@ -15,7 +15,6 @@ import (
 	"github.com/AdmiralBulldogTv/VodTranscoder/src/structures"
 	"github.com/AdmiralBulldogTv/VodTranscoder/src/svc/mongo"
 	"github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -39,35 +38,37 @@ func (j *Job) Process(gCtx global.Context) (ret bool) {
 				localLog.Errorf("failed to cleanup %s directory: %s", outFolder, err.Error())
 			}
 		} else {
-			if _, err := gCtx.Inst().Mongo.Collection(mongo.CollectionNameVods).UpdateOne(context.Background(), bson.M{
+			res := gCtx.Inst().Mongo.Collection(mongo.CollectionNameVods).FindOneAndUpdate(context.Background(), bson.M{
 				"_id":           j.VodID,
 				"variants.name": j.Variant.Name,
 			}, bson.M{
 				"$set": bson.M{
 					"variants.$.ready": true,
 				},
-			}); err != nil {
+			})
+			err := res.Err()
+			vod := structures.Vod{}
+			if err == nil {
+				err = res.Decode(&vod)
+			}
+			if err != nil {
 				localLog.Errorf("failed to update mongo: %s", err.Error())
 			}
-		}
 
-		respErr := ""
-		if ret {
-			respErr = "failed to transcode " + j.Variant.Name
-		}
+			shouldCleanUp := true
 
-		body, _ := json.Marshal(structures.ApiTranscodeUpdate{
-			VodID:   j.VodID,
-			Variant: j.Variant,
-			Error:   respErr,
-		})
+			for _, v := range vod.Variants {
+				if v.Name != j.Variant.Name && !v.Ready {
+					shouldCleanUp = false
+					break
+				}
+			}
 
-		if err := gCtx.Inst().RMQ.Publish(gCtx.Config().RMQ.ApiTaskQueue, amqp.Publishing{
-			ContentType:  "application/json",
-			DeliveryMode: amqp.Persistent,
-			Body:         body,
-		}); err != nil {
-			localLog.Errorf("failed to publish rmq: %s", err.Error())
+			if shouldCleanUp {
+				if err := os.Remove(filePath); err != nil {
+					logrus.Error("failed to remove %s: %s", filePath, err.Error())
+				}
+			}
 		}
 	}()
 

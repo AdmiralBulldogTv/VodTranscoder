@@ -114,7 +114,6 @@ func main() {
 		rmqInst, err := rmq.New(ctx, rmq.SetupOptions{
 			URI:                     gCtx.Config().RMQ.URI,
 			TranscoderTaskQueueName: gCtx.Config().RMQ.TranscoderTaskQueue,
-			ApiTaskQueueName:        gCtx.Config().RMQ.ApiTaskQueue,
 		})
 		cancel()
 		if err != nil {

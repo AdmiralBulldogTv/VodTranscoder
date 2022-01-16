@@ -106,7 +106,6 @@ type Config struct {
 	RMQ struct {
 		URI                 string `mapstructure:"uri" json:"uri"`
 		TranscoderTaskQueue string `mapstructure:"transcoder_task_queue" json:"transcoder_task_queue"`
-		ApiTaskQueue        string `mapstructure:"api_task_queue" json:"api_task_queue"`
 	} `mapstructure:"rmq" json:"rmq"`
 
 	Redis struct {

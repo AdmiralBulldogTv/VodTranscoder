@@ -28,11 +28,6 @@ func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
 		return nil, err
 	}
 
-	_, err = ch.QueueDeclare(opts.ApiTaskQueueName, true, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	return &RmqInst{
 		conn: conn,
 		ch:   ch,
@@ -61,5 +56,4 @@ func (r *RmqInst) Consume(queueName string, consumer string) (*amqp.Channel, <-c
 type SetupOptions struct {
 	URI                     string
 	TranscoderTaskQueueName string
-	ApiTaskQueueName        string
 }

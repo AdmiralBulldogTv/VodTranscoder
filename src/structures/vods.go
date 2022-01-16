@@ -12,7 +12,7 @@ type Vod struct {
 
 	Title string `json:"title" bson:"title"`
 
-	Categories []VodCategory `json:"category" bson:"category"`
+	Categories []VodCategory `json:"categories" bson:"categories"`
 
 	State      VodState      `json:"vod_state" bson:"vod_state"`
 	Visibility VodVisibility `json:"vod_visibility" bson:"vod_visibility"`
