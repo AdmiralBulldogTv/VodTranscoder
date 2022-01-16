@@ -66,7 +66,7 @@ func (j *Job) Process(gCtx global.Context) (ret bool) {
 
 			if shouldCleanUp {
 				if err := os.Remove(filePath); err != nil {
-					logrus.Error("failed to remove %s: %s", filePath, err.Error())
+					logrus.Errorf("failed to remove %s: %s", filePath, err.Error())
 				}
 			}
 		}
