@@ -6,6 +6,7 @@ import (
 	"github.com/AdmiralBulldogTv/VodTranscoder/src/global"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/sirupsen/logrus"
+	"github.com/streadway/amqp"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -24,10 +25,19 @@ func New(gCtx global.Context) <-chan struct{} {
 		logrus.Fatal("failed to consume rmq: ", err)
 	}
 
+	closeCh := ch.NotifyClose(make(chan *amqp.Error))
+
 	go func() {
 		defer ch.Close()
 		for {
 			select {
+			case <-closeCh:
+				logrus.Warn("RMQ connection closed, reopening...")
+				ch, msgQueue, err = gCtx.Inst().RMQ.Consume(gCtx.Config().RMQ.TranscoderTaskQueue, gCtx.Config().Pod.Name)
+				if err != nil {
+					logrus.Fatal("failed to consume rmq: ", err)
+				}
+				closeCh = ch.NotifyClose(make(chan *amqp.Error))
 			case rawJob := <-msgQueue:
 				select {
 				case job := <-jobsCh:
@@ -61,6 +71,10 @@ func New(gCtx global.Context) <-chan struct{} {
 				case <-gCtx.Done():
 					return
 				default:
+					if len(rawJob.Body) == 0 {
+						_ = rawJob.Nack(false, false)
+						continue
+					}
 					if err := rawJob.Nack(false, true); err != nil {
 						logrus.Error("failed to nack message: ", err)
 					}

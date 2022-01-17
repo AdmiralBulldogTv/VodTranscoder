@@ -2,19 +2,21 @@ package rmq
 
 import (
 	"context"
+	"time"
 
 	"github.com/AdmiralBulldogTv/VodTranscoder/src/instance"
 	"github.com/streadway/amqp"
 )
 
 type RmqInst struct {
-	conn      *amqp.Connection
-	ch        *amqp.Channel
-	noopQueue string
+	conn *amqp.Connection
+	ch   *amqp.Channel
 }
 
 func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
-	conn, err := amqp.Dial(opts.URI)
+	conn, err := amqp.DialConfig(opts.URI, amqp.Config{
+		Heartbeat: time.Second * 5,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -29,15 +31,9 @@ func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
 		return nil, err
 	}
 
-	_, err = ch.QueueDeclare(opts.NoopTaskQueueName, false, false, false, false, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	return &RmqInst{
-		conn:      conn,
-		ch:        ch,
-		noopQueue: opts.NoopTaskQueueName,
+		conn: conn,
+		ch:   ch,
 	}, nil
 }
 
@@ -63,5 +59,4 @@ func (r *RmqInst) Consume(queueName string, consumer string) (*amqp.Channel, <-c
 type SetupOptions struct {
 	URI                     string
 	TranscoderTaskQueueName string
-	NoopTaskQueueName       string
 }
