@@ -8,8 +8,9 @@ import (
 )
 
 type RmqInst struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+	conn      *amqp.Connection
+	ch        *amqp.Channel
+	noopQueue string
 }
 
 func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
@@ -28,9 +29,15 @@ func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
 		return nil, err
 	}
 
+	_, err = ch.QueueDeclare(opts.NoopTaskQueueName, false, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	return &RmqInst{
-		conn: conn,
-		ch:   ch,
+		conn:      conn,
+		ch:        ch,
+		noopQueue: opts.NoopTaskQueueName,
 	}, nil
 }
 
@@ -56,4 +63,5 @@ func (r *RmqInst) Consume(queueName string, consumer string) (*amqp.Channel, <-c
 type SetupOptions struct {
 	URI                     string
 	TranscoderTaskQueueName string
+	NoopTaskQueueName       string
 }

@@ -28,14 +28,11 @@ func New(gCtx global.Context) <-chan struct{} {
 		defer ch.Close()
 		for {
 			select {
-			case job := <-jobsCh:
+			case rawJob := <-msgQueue:
 				select {
-				case rawJob := <-msgQueue:
+				case job := <-jobsCh:
 					if len(rawJob.Body) == 0 {
-						err := rawJob.Nack(false, false)
-						if err != nil {
-							logrus.Error("failed to ack: ", err)
-						}
+						_ = rawJob.Nack(false, false)
 						continue
 					}
 
@@ -63,6 +60,10 @@ func New(gCtx global.Context) <-chan struct{} {
 					}()
 				case <-gCtx.Done():
 					return
+				default:
+					if err := rawJob.Nack(false, true); err != nil {
+						logrus.Error("failed to nack message: ", err)
+					}
 				}
 			case <-gCtx.Done():
 				return
