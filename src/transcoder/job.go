@@ -53,10 +53,10 @@ func (j *Job) Process(gCtx global.Context) (ret bool) {
 			}
 			if err != nil {
 				localLog.Errorf("failed to update mongo: %s", err.Error())
+				return
 			}
 
 			shouldCleanUp := true
-
 			for _, v := range vod.Variants {
 				if v.Name != j.Variant.Name && !v.Ready {
 					shouldCleanUp = false
@@ -66,7 +66,7 @@ func (j *Job) Process(gCtx global.Context) (ret bool) {
 
 			if shouldCleanUp {
 				if err := os.Remove(filePath); err != nil {
-					logrus.Errorf("failed to remove %s: %s", filePath, err.Error())
+					localLog.Errorf("failed to remove %s: %s", filePath, err.Error())
 				}
 			}
 		}
