@@ -30,6 +30,16 @@ func (j *Job) Process(gCtx global.Context, ctx context.Context) (ret bool) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	if _, err := gCtx.Inst().Mongo.Collection(mongo.CollectionNameVods).UpdateOne(context.Background(), bson.M{
+		"_id": j.VodID,
+	}, bson.M{
+		"$set": bson.M{
+			"vod_state": structures.VodStateProcessing,
+		},
+	}); err != nil {
+		localLog.Errorf("failed to update vod state processing: %s", err.Error())
+	}
+
 	filePath := path.Join(gCtx.Config().Transcode.ReadPath, j.VodID.Hex()+".flv")
 	outFolder := path.Join(gCtx.Config().Transcode.WritePath, j.VodID.Hex(), j.Variant.Name)
 	defer func() {
@@ -67,6 +77,16 @@ func (j *Job) Process(gCtx global.Context, ctx context.Context) (ret bool) {
 			if shouldCleanUp {
 				if err := os.Remove(filePath); err != nil {
 					localLog.Errorf("failed to remove %s: %s", filePath, err.Error())
+				}
+
+				if _, err = gCtx.Inst().Mongo.Collection(mongo.CollectionNameVods).UpdateOne(context.Background(), bson.M{
+					"_id": j.VodID,
+				}, bson.M{
+					"$set": bson.M{
+						"vod_state": structures.VodStateReady,
+					},
+				}); err != nil {
+					localLog.Errorf("failed to update vod state ready: %s", err.Error())
 				}
 			}
 		}
