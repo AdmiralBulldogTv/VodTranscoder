@@ -22,12 +22,12 @@ type Job struct {
 	structures.VodTranscodeJob
 }
 
-func (j *Job) Process(gCtx global.Context) (ret bool) {
+func (j *Job) Process(gCtx global.Context, ctx context.Context) (ret bool) {
 	ret = true
 
 	localLog := logrus.WithField("vod_id", j.VodID.Hex())
 	localLog.Info("new job: ", j.Variant)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	filePath := path.Join(gCtx.Config().Transcode.ReadPath, j.VodID.Hex()+".flv")

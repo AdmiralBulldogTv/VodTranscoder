@@ -1,6 +1,7 @@
 package transcoder
 
 import (
+	"context"
 	"sync"
 
 	"github.com/AdmiralBulldogTv/VodTranscoder/src/global"
@@ -24,8 +25,8 @@ func New(gCtx global.Context) <-chan struct{} {
 	if err != nil {
 		logrus.Fatal("failed to consume rmq: ", err)
 	}
-
 	closeCh := ch.NotifyClose(make(chan *amqp.Error))
+	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
 		defer ch.Close()
@@ -38,6 +39,8 @@ func New(gCtx global.Context) <-chan struct{} {
 					logrus.Fatal("failed to consume rmq: ", err)
 				}
 				closeCh = ch.NotifyClose(make(chan *amqp.Error))
+				cancel()
+				ctx, cancel = context.WithCancel(context.Background())
 			case rawJob := <-msgQueue:
 				select {
 				case job := <-jobsCh:
@@ -57,7 +60,7 @@ func New(gCtx global.Context) <-chan struct{} {
 					wg.Add(1)
 					go func() {
 						var err error
-						if job.Process(gCtx) {
+						if job.Process(gCtx, ctx) {
 							err = rawJob.Nack(false, true)
 						} else {
 							err = rawJob.Ack(false)
