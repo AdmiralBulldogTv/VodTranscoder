@@ -5,12 +5,14 @@ import (
 	"time"
 
 	"github.com/AdmiralBulldogTv/VodTranscoder/src/instance"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
 type RmqInst struct {
-	conn *amqp.Connection
-	ch   *amqp.Channel
+	conn      *amqp.Connection
+	ch        *amqp.Channel
+	noopQueue string
 }
 
 func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
@@ -26,14 +28,20 @@ func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
 		return nil, err
 	}
 
+	_, err = ch.QueueDeclare(opts.NoopQueue, false, false, false, false, nil)
+	if err != nil {
+		return nil, err
+	}
+
 	_, err = ch.QueueDeclare(opts.TranscoderTaskQueueName, true, false, false, false, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return &RmqInst{
-		conn: conn,
-		ch:   ch,
+		conn:      conn,
+		ch:        ch,
+		noopQueue: opts.NoopQueue,
 	}, nil
 }
 
@@ -47,6 +55,23 @@ func (r *RmqInst) Consume(queueName string, consumer string) (*amqp.Channel, <-c
 		return nil, nil, err
 	}
 
+	go func() {
+		tick := time.NewTicker(time.Second * 5)
+		defer tick.Stop()
+		defer ch.Close()
+		for range tick.C {
+			if err := ch.Publish("", r.noopQueue, false, false, amqp.Publishing{
+				Headers: amqp.Table{
+					"x-message-ttl": int32(60000),
+				},
+				Body: []byte{'b', 'a', 't', 'c', 'h', 'e', 's', 't'},
+			}); err != nil {
+				logrus.Error("failed to publish to noop queue: ", err)
+				return
+			}
+		}
+	}()
+
 	msg, err := ch.Consume(queueName, consumer, false, false, false, false, nil)
 	if err != nil {
 		_ = ch.Close()
@@ -59,4 +84,5 @@ func (r *RmqInst) Consume(queueName string, consumer string) (*amqp.Channel, <-c
 type SetupOptions struct {
 	URI                     string
 	TranscoderTaskQueueName string
+	NoopQueue               string
 }
