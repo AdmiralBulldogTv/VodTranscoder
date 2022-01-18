@@ -28,7 +28,9 @@ func New(ctx context.Context, opts SetupOptions) (instance.RMQ, error) {
 		return nil, err
 	}
 
-	_, err = ch.QueueDeclare(opts.NoopQueue, false, false, false, false, nil)
+	_, err = ch.QueueDeclare(opts.NoopQueue, false, false, false, false, amqp.Table{
+		"x-message-ttl": int32(30000), // 30s ttl
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -61,9 +63,6 @@ func (r *RmqInst) Consume(queueName string, consumer string) (*amqp.Channel, <-c
 		defer ch.Close()
 		for range tick.C {
 			if err := ch.Publish("", r.noopQueue, false, false, amqp.Publishing{
-				Headers: amqp.Table{
-					"x-message-ttl": int32(60000),
-				},
 				Body: []byte{'b', 'a', 't', 'c', 'h', 'e', 's', 't'},
 			}); err != nil {
 				logrus.Error("failed to publish to noop queue: ", err)
